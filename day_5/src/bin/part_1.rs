@@ -1,30 +1,26 @@
 use itertools::Itertools;
 use std::{collections::HashMap, time::Instant};
 
-fn filter_correct_updates(ins: HashMap<u8, Vec<u8>>, updates: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
-    let mut allowed = vec![];
-
-    'update_loop: for update in updates {
-        let len = update.len();
-
-        for cidx in (1..len).rev() {
-            if let Some(denied) = ins.get(&update[cidx]) {
-                for nidx in (0..cidx).rev() {
-                    if denied.contains(&update[nidx]) {
-                        println!(
-                            "denied list '{}': {:?}\ncontains {:?}\n",
-                            cidx, denied, update[nidx]
-                        );
-                        continue 'update_loop;
-                    }
+fn filter_correct_mids(ins: &HashMap<u8, Vec<u8>>, update: Vec<u8>) -> Option<usize> {
+    let len = update.len();
+    let mid = len / 2;
+    let mut allowed = true;
+    'outer: for cidx in (1..len).rev() {
+        if let Some(denied) = ins.get(&update[cidx]) {
+            for nidx in (0..cidx).rev() {
+                if denied.contains(&update[nidx]) {
+                    allowed = false;
+                    break 'outer;
                 }
             }
         }
-
-        allowed.push(update);
     }
 
-    allowed
+    if allowed {
+        Some(update[mid] as usize)
+    } else {
+        None
+    }
 }
 
 fn calc_mid_vals(updates: Vec<Vec<u8>>) -> usize {
@@ -64,19 +60,15 @@ fn process(input: &str) -> usize {
             map
         });
 
-    let updates = p2
-        .lines()
+    p2.lines()
         .map(|l| {
             l.trim_end_matches("\n")
                 .split(",")
                 .map(|l| l.parse::<u8>().expect("Should be digit!"))
                 .collect_vec()
         })
-        .collect_vec();
-
-    let correct = filter_correct_updates(ins, updates);
-
-    calc_mid_vals(correct)
+        .filter_map(|update| filter_correct_mids(&ins, update))
+        .sum()
 }
 
 fn main() {
